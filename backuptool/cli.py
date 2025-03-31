@@ -16,7 +16,7 @@ def format_timestamp(timestamp: str) -> str:
 def snapshot_command(args):
     """Execute the snapshot command."""
     try:
-        with BackupOperations() as ops:
+        with BackupOperations(db_path=args.db_path) as ops:
             snapshot_id = ops.snapshot(args.target_directory)
             print(f"Snapshot {snapshot_id} created successfully.")
     except Exception as e:
@@ -27,7 +27,7 @@ def snapshot_command(args):
 def list_command(args):
     """Execute the list command."""
     try:
-        with BackupOperations() as ops:
+        with BackupOperations(db_path=args.db_path) as ops:
             snapshots, total_db_size = ops.list_snapshots()
             
             if not snapshots:
@@ -51,7 +51,7 @@ def list_command(args):
 def restore_command(args):
     """Execute the restore command."""
     try:
-        with BackupOperations() as ops:
+        with BackupOperations(db_path=args.db_path) as ops:
             success = ops.restore(args.snapshot_number, args.output_directory)
             if success:
                 print(f"Snapshot {args.snapshot_number} restored to {args.output_directory}")
@@ -63,7 +63,7 @@ def restore_command(args):
 def prune_command(args):
     """Execute the prune command."""
     try:
-        with BackupOperations() as ops:
+        with BackupOperations(db_path=args.db_path) as ops:
             success = ops.prune(args.snapshot)
             if success:
                 print(f"Snapshot {args.snapshot} pruned successfully.")
@@ -78,6 +78,9 @@ def prune_command(args):
 def main():
 
     parser = argparse.ArgumentParser(description="File backup tool with incremental snapshots")
+    # Add db-path argument to the main parser so it's available for all commands
+    parser.add_argument("--db-path", default="backups.db", help="Path to the database file (default: backups.db)")
+    
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
     
     # Snapshot command
