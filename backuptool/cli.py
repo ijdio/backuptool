@@ -39,15 +39,24 @@ def list_command(args):
             
             # Print each snapshot
             for snapshot in snapshots:
-                print(f"{snapshot['id']:<10}"
-                      f"{format_timestamp(snapshot['timestamp']):<25}"
-                      f"{snapshot['size']:<6}"
-                      f"{snapshot['distinct_size']:<15}")
+                print(f"{snapshot['id']:<10}{format_timestamp(snapshot['timestamp']):<25}{snapshot['size']:<6}{snapshot['distinct_size']:<15}")
             
             # Print total size summary
             print(f"{'total':<35}{total_db_size:<6}")
     except Exception as e:
         print(f"Error listing snapshots: {str(e)}")
+        sys.exit(1)
+
+
+def restore_command(args):
+    """Execute the restore command."""
+    try:
+        with BackupOperations() as ops:
+            success = ops.restore(args.snapshot_number, args.output_directory)
+            if success:
+                print(f"Snapshot {args.snapshot_number} restored to {args.output_directory}")
+    except Exception as e:
+        print(f"Error restoring snapshot: {str(e)}")
         sys.exit(1)
 
 
@@ -62,12 +71,19 @@ def main():
     # List command
     subparsers.add_parser("list", help="List all snapshots")
     
+    # Restore command
+    restore_parser = subparsers.add_parser("restore", help="Restore a snapshot to a directory")
+    restore_parser.add_argument("--snapshot-number", type=int, required=True, help="Snapshot ID to restore")
+    restore_parser.add_argument("--output-directory", required=True, help="Directory to restore to")
+    
     args = parser.parse_args()
     
     if args.command == "snapshot":
         snapshot_command(args)
     elif args.command == "list":
         list_command(args)
+    elif args.command == "restore":
+        restore_command(args)
     else:
         parser.print_help()
         sys.exit(1)

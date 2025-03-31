@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 
 
 class BackupDatabase:
-    """Handles database operations required for snapshot and list commands."""
+    """Handles database operations for snapshot and listing functionality."""
 
     def __init__(self, db_path="backups.db"):
         self.db_path = db_path
@@ -52,6 +52,15 @@ class BackupDatabase:
         self.conn.commit()
         return cursor.lastrowid
 
+    def get_file_hash(self, snapshot_id: int, file_path: str) -> Optional[str]:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT content_hash FROM files WHERE snapshot_id = ? AND path = ?",
+            (snapshot_id, file_path)
+        )
+        result = cursor.fetchone()
+        return result['content_hash'] if result else None
+
     def add_file(self, snapshot_id: int, file_path: str, content_hash: str):
         cursor = self.conn.cursor()
         cursor.execute(
@@ -79,6 +88,26 @@ class BackupDatabase:
         cursor = self.conn.cursor()
         cursor.execute("SELECT id, timestamp FROM snapshots ORDER BY id")
         return [dict(row) for row in cursor.fetchall()]
+
+    def get_snapshot(self, snapshot_id: int) -> Optional[Dict]:
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT id, timestamp FROM snapshots WHERE id = ?", (snapshot_id,))
+        result = cursor.fetchone()
+        return dict(result) if result else None
+
+    def get_snapshot_files(self, snapshot_id: int) -> List[Dict]:
+        cursor = self.conn.cursor()
+        cursor.execute(
+            "SELECT id, path, content_hash FROM files WHERE snapshot_id = ?",
+            (snapshot_id,)
+        )
+        return [dict(row) for row in cursor.fetchall()]
+
+    def get_file_content(self, content_hash: str) -> Optional[bytes]:
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT data FROM contents WHERE hash = ?", (content_hash,))
+        result = cursor.fetchone()
+        return result['data'] if result else None
 
     def get_snapshot_size(self, snapshot_id: int) -> int:
         cursor = self.conn.cursor()
