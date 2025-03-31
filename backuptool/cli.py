@@ -6,7 +6,15 @@ from typing import List
 
 from .operations import BackupOperations
 
+
+def format_timestamp(timestamp: str) -> str:
+    """Convert ISO format timestamp to a more readable format."""
+    dt = datetime.fromisoformat(timestamp)
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
 def snapshot_command(args):
+    """Execute the snapshot command."""
     try:
         with BackupOperations() as ops:
             snapshot_id = ops.snapshot(args.target_directory)
@@ -20,20 +28,30 @@ def list_command(args):
     """Execute the list command."""
     try:
         with BackupOperations() as ops:
+            snapshots, total_db_size = ops.list_snapshots()
+            
             if not snapshots:
                 print("No snapshots found.")
                 return
             
-            for snapshot in snapshots:
-                print(f"{snapshot['id']:<10}{format_timestamp(snapshot['timestamp']):<25}")
+            # Print the header
+            print(f"{'SNAPSHOT':<10}{'TIMESTAMP':<25}{'SIZE':<6}{'DISTINCT_SIZE':<15}")
             
+            # Print each snapshot
+            for snapshot in snapshots:
+                print(f"{snapshot['id']:<10}"
+                      f"{format_timestamp(snapshot['timestamp']):<25}"
+                      f"{snapshot['size']:<6}"
+                      f"{snapshot['distinct_size']:<15}")
+            
+            # Print total size summary
+            print(f"{'total':<35}{total_db_size:<6}")
     except Exception as e:
         print(f"Error listing snapshots: {str(e)}")
         sys.exit(1)
 
 
 def main():
-
     parser = argparse.ArgumentParser(description="File backup tool with incremental snapshots")
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
     
