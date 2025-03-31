@@ -60,7 +60,23 @@ def restore_command(args):
         sys.exit(1)
 
 
+def prune_command(args):
+    """Execute the prune command."""
+    try:
+        with BackupOperations() as ops:
+            success = ops.prune(args.snapshot)
+            if success:
+                print(f"Snapshot {args.snapshot} pruned successfully.")
+            else:
+                print(f"Failed to prune snapshot {args.snapshot}.")
+                sys.exit(1)
+    except Exception as e:
+        print(f"Error pruning snapshot: {str(e)}")
+        sys.exit(1)
+
+
 def main():
+
     parser = argparse.ArgumentParser(description="File backup tool with incremental snapshots")
     subparsers = parser.add_subparsers(dest="command", help="Command to execute")
     
@@ -76,6 +92,10 @@ def main():
     restore_parser.add_argument("--snapshot-number", type=int, required=True, help="Snapshot ID to restore")
     restore_parser.add_argument("--output-directory", required=True, help="Directory to restore to")
     
+    # Prune command
+    prune_parser = subparsers.add_parser("prune", help="Remove a snapshot")
+    prune_parser.add_argument("--snapshot", type=int, required=True, help="Snapshot ID to prune")
+    
     args = parser.parse_args()
     
     if args.command == "snapshot":
@@ -84,6 +104,8 @@ def main():
         list_command(args)
     elif args.command == "restore":
         restore_command(args)
+    elif args.command == "prune":
+        prune_command(args)
     else:
         parser.print_help()
         sys.exit(1)
