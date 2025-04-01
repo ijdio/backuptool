@@ -64,14 +64,41 @@ def prune_command(args):
     """Execute the prune command."""
     try:
         with BackupOperations(db_path=args.db_path) as ops:
-            success = ops.prune(args.snapshot)
-            if success:
+            if ops.prune(args.snapshot):
                 print(f"Snapshot {args.snapshot} pruned successfully.")
             else:
                 print(f"Failed to prune snapshot {args.snapshot}.")
                 sys.exit(1)
     except Exception as e:
         print(f"Error pruning snapshot: {str(e)}")
+        sys.exit(1)
+
+
+def check_command(args):
+    """Execute the check command to verify database integrity."""
+    try:
+        with BackupOperations(db_path=args.db_path) as ops:
+            all_valid, corrupted_items = ops.check()
+            
+            if all_valid:
+                print("Database integrity check passed. All file content is valid.")
+            else:
+                print("Database integrity check FAILED. Corrupted content detected:")
+                print(f"\nFound {len(corrupted_items)} corrupted items:")
+                
+                for i, item in enumerate(corrupted_items, 1):
+                    print(f"\n{i}. Corrupted content:")
+                    print(f"   Stored hash:     {item['stored_hash']}")
+                    print(f"   Calculated hash: {item['calculated_hash']}")
+                    
+                    if item['affected_files']:
+                        print(f"   Affected files ({len(item['affected_files'])}):")
+                        for file in item['affected_files']:
+                            print(f"     - Snapshot {file['snapshot_id']} ({format_timestamp(file['timestamp'])}): {file['path']}")
+                
+                sys.exit(1)
+    except Exception as e:
+        print(f"Error checking database integrity: {str(e)}")
         sys.exit(1)
 
 
@@ -99,6 +126,9 @@ def main():
     prune_parser = subparsers.add_parser("prune", help="Remove a snapshot")
     prune_parser.add_argument("--snapshot", type=int, required=True, help="Snapshot ID to prune")
     
+    # Check command
+    subparsers.add_parser("check", help="Check database integrity for corrupted file content")
+    
     args = parser.parse_args()
     
     if args.command == "snapshot":
@@ -109,6 +139,8 @@ def main():
         restore_command(args)
     elif args.command == "prune":
         prune_command(args)
+    elif args.command == "check":
+        check_command(args)
     else:
         parser.print_help()
         sys.exit(1)

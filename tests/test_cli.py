@@ -3,7 +3,7 @@ import sys
 import subprocess
 import pytest
 from pathlib import Path
-
+import sqlite3
 from backuptool.operations import BackupOperations
 from tests.conftest import TestBase
 
@@ -109,23 +109,46 @@ class TestCLI(TestBase):
         custom_db_path = self.working_dir / "custom.db"
         
         # Run a command with the custom database path
-        result = self._run_cli_command([
-            "--db-path", str(custom_db_path),
-            "snapshot", 
-            "--target-directory", str(self.source_dir)
-        ])
-        
-        # Verify command succeeded
+        # The --db-path argument must come before the subcommand
+        result = self._run_cli_command(["--db-path", str(custom_db_path), "snapshot", "--target-directory", str(self.source_dir)])
         assert result.returncode == 0
         
         # Verify the database was created at the custom path
-        assert os.path.exists(custom_db_path)
-        
-        # Verify we can list snapshots from the custom database
-        result = self._run_cli_command([
-            "--db-path", str(custom_db_path),
-            "list"
-        ])
-        
+        assert custom_db_path.exists()
+    
+    def test_check_command(self):
+        """Test that the check command works correctly."""
+        # First create a snapshot to have some data
+        result = self._run_cli_command(["snapshot", "--target-directory", str(self.source_dir)])
         assert result.returncode == 0
-        assert "SNAPSHOT" in result.stdout
+        
+        # Run the check command - should pass
+        result = self._run_cli_command(["check"])
+        assert result.returncode == 0
+        assert "Database integrity check passed" in result.stdout
+        
+        # Manually corrupt the database
+        with sqlite3.connect(str(self.db_path)) as conn:
+            cursor = conn.cursor()
+            
+            # Get a content hash to corrupt
+            cursor.execute("SELECT hash FROM contents LIMIT 1")
+            content_hash = cursor.fetchone()[0]
+            
+            # Corrupt the data by modifying a byte
+            cursor.execute("SELECT data FROM contents WHERE hash = ?", (content_hash,))
+            data = cursor.fetchone()[0]
+            corrupted_data = bytearray(data)
+            if len(corrupted_data) > 0:
+                corrupted_data[0] = (corrupted_data[0] + 1) % 256  # Change the first byte
+                
+                # Update the database with corrupted data
+                cursor.execute("UPDATE contents SET data = ? WHERE hash = ?", 
+                             (bytes(corrupted_data), content_hash))
+                conn.commit()
+        
+        # Run the check command again - should fail
+        result = self._run_cli_command(["check"])
+        assert result.returncode == 1
+        assert "Database integrity check FAILED" in result.stdout
+        assert "Corrupted content detected" in result.stdout

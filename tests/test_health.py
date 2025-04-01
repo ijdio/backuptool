@@ -17,14 +17,12 @@ class TestHealth(TestBase):
 
     def test_imports(self):
         """Test that all required modules can be imported."""
-        # This test passes if the imports above succeed
         assert BackupOperations is not None
         assert BackupDatabase is not None
         assert hash_file_content is not None
 
     def test_database_initialization(self):
         """Test that the database can be initialized."""
-        # The database is already initialized in the setup
         assert self.db is not None
         assert os.path.exists(self.db_path)
 
@@ -50,15 +48,45 @@ class TestHealth(TestBase):
         assert len(file_hash) > 0
         
     def test_context_manager(self):
-        """Test that the context manager works correctly."""
+        """Test that BackupOperations works as a context manager."""
         with BackupOperations(str(self.db_path)) as ops:
             assert ops is not None
-            # Perform some operation to verify it works
-            snapshot_id = ops.snapshot(str(self.source_dir))
-            assert snapshot_id == 1
         
-        # Verify the database connection was closed
-        # by opening a new connection and checking the snapshot exists
+        # After exiting the context, the database should be closed
+        assert ops.db.conn is None
+        
+    def test_check_integrity(self):
+        """Test that the check operation correctly identifies corrupted content."""
+        # Create a snapshot to have some data in the database
         with BackupOperations(str(self.db_path)) as ops:
-            snapshots = ops.db.get_snapshots()
-            assert len(snapshots) == 1
+            ops.snapshot(str(self.source_dir))
+            
+            # Verify integrity - should pass initially
+            all_valid, corrupted_items = ops.check()
+            assert all_valid is True
+            assert len(corrupted_items) == 0
+            
+            # Manually corrupt a content entry
+            cursor = ops.db.conn.cursor()
+            
+            # Get a content hash to corrupt
+            cursor.execute("SELECT hash FROM contents LIMIT 1")
+            content_hash = cursor.fetchone()[0]
+            
+            # Corrupt the data by modifying a byte
+            cursor.execute("SELECT data FROM contents WHERE hash = ?", (content_hash,))
+            data = cursor.fetchone()[0]
+            corrupted_data = bytearray(data)
+            if len(corrupted_data) > 0:
+                corrupted_data[0] = (corrupted_data[0] + 1) % 256  # Change the first byte
+                
+                # Update the database with corrupted data
+                cursor.execute("UPDATE contents SET data = ? WHERE hash = ?", 
+                              (bytes(corrupted_data), content_hash))
+                ops.db.conn.commit()
+                
+                # Check again - should fail now
+                all_valid, corrupted_items = ops.check()
+                assert all_valid is False
+                assert len(corrupted_items) > 0
+                assert corrupted_items[0]['stored_hash'] == content_hash

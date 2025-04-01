@@ -238,6 +238,7 @@ class BackupDatabase:
         """Close the database connection."""
         if self.conn:
             self.conn.close()
+            self.conn = None
 
     def __enter__(self):
         return self

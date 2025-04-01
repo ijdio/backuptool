@@ -2,6 +2,7 @@ import os
 import pytest
 import shutil
 from pathlib import Path
+import hashlib
 
 from backuptool.operations import BackupOperations
 from backuptool.database import BackupDatabase

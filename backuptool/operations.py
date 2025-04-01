@@ -2,6 +2,7 @@ import os
 import shutil
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
+import hashlib
 
 from .database import BackupDatabase, hash_file_content
 
@@ -129,6 +130,64 @@ class BackupOperations:
         except ValueError as e:
             print(f"Error: {str(e)}")
             return False
+
+    def check(self) -> Tuple[bool, List[Dict]]:
+        """
+        Check the database for corrupted file content.
+        
+        This method verifies that all file content stored in the database has the correct hash value. 
+        It recalculates the hash for each stored blob and compares it with the key hash.
+        
+        Returns:
+            A tuple containing:
+            - A boolean indicating if all content matches the expected hash.
+            - A list of dictionaries with information about corrupted content
+        """
+        cursor = self.db.conn.cursor()
+        
+        # Get all content hashes and data from the database
+        cursor.execute("SELECT hash, data FROM contents")
+        contents = cursor.fetchall()
+        
+        corrupted_items = []
+        all_valid = True
+        
+        for content in contents:
+            stored_hash = content[0]
+            data = content[1]
+            
+            # Recalculate the hash from the stored data
+            calculated_hash = hashlib.sha256(data).hexdigest()
+            
+            # Check if the calculated hash matches the stored hash
+            if calculated_hash != stored_hash:
+                all_valid = False
+                
+                # Find which files use this corrupted content
+                cursor.execute("""
+                    SELECT f.path, s.id as snapshot_id, s.timestamp
+                    FROM files f
+                    JOIN snapshots s ON f.snapshot_id = s.id
+                    WHERE f.content_hash = ?
+                """, (stored_hash,))
+                
+                affected_files = cursor.fetchall()
+                
+                corrupted_item = {
+                    'stored_hash': stored_hash,
+                    'calculated_hash': calculated_hash,
+                    'affected_files': [
+                        {
+                            'path': file[0],
+                            'snapshot_id': file[1],
+                            'timestamp': file[2]
+                        } for file in affected_files
+                    ]
+                }
+                
+                corrupted_items.append(corrupted_item)
+        
+        return all_valid, corrupted_items
 
     def close(self):
         self.db.close()
