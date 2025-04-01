@@ -13,7 +13,7 @@ logger = logging.getLogger('backuptool')
 
 
 class BackupOperations:
-    """Handles core backup operations like snapshot, restore, list, and prune."""
+    """Handles core backup operations like snapshot, restore, list, check, and prune."""
 
     def __init__(self, db_path: str = "backups.db"):
         """
