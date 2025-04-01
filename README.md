@@ -17,16 +17,65 @@ A robust Python utility for creating incremental directory snapshots with conten
 - Python 3.8 or higher
 - SQLite3 (included in Python standard library)
 
-### Install from Source
+### Installation Options
+
+#### Using a Virtual Environment (recommended)
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/backuptool.git
+git clone https://github.com/ijdio/backuptool.git
+cd backuptool
+
+# Create and activate a virtual environment
+python -m venv .venv
+
+# On Windows
+.venv\Scripts\activate
+
+# On macOS/Linux
+source .venv/bin/activate
+
+# Install dependencies and the package
+pip install -e .
+```
+
+#### Installing Development Dependencies
+
+If you want to contribute to the project or run tests, install the development dependencies:
+
+```bash
+# Install the package with development dependencies
+pip install -e ".[dev]"
+
+# Or install development dependencies separately
+pip install pytest pytest-cov
+```
+
+#### Global Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/ijdio/backuptool.git
 cd backuptool
 
 # Install in development mode
 pip install -e .
 ```
+
+### Running the Tool
+
+After installation, you can run the tool using one of these methods:
+
+1. If you installed locally or in a virtual environment:
+   ```bash
+   python -m backuptool <command> [options]
+   ```
+
+2. If you installed globally:
+   ```bash
+   # Using the entry point script
+   backuptool <command> [options]
+   ```
 
 ## Usage
 
@@ -35,7 +84,7 @@ pip install -e .
 #### Taking a Snapshot
 
 ```bash
-python -m backuptool snapshot --target-directory /path/to/backup
+python -m backuptool snapshot --target-directory=/path/to/backup
 ```
 
 #### Listing Snapshots
@@ -46,18 +95,18 @@ python -m backuptool list
 
 Example output:
 ```
-SNAPSHOT ID  TIMESTAMP                 SIZE       DISTINCT SIZE  
-------------------------------------------------------------
-1            2025-03-30 15:30:45       156        156            
-2            2025-03-31 09:45:12       172        30             
-------------------------------------------------------------
-TOTAL                                  186        
+SNAPSHOT  TIMESTAMP             SIZE  DISTINCT_SIZE 
+1         2025-03-30 20:47:09   224   0
+2         2025-03-30 20:47:38   224   0
+3         2025-03-31 15:00:52   224   0
+4         2025-03-31 20:33:50   176   176
+total                           400
 ```
 
 #### Restoring a Snapshot
 
 ```bash
-python -m backuptool restore --snapshot-number 2 --output-directory /path/to/restore
+python -m backuptool restore --snapshot-number=2 --output-directory/path/to/restore
 ```
 
 #### Pruning a Snapshot
@@ -132,8 +181,8 @@ The tool implements robust error handling:
 ### Running Tests
 
 ```bash
-# Install development dependencies
-pip install pytest pytest-cov
+# If you haven't installed development dependencies yet
+pip install -e ".[dev]"
 
 # Run tests
 python -m pytest
@@ -141,7 +190,3 @@ python -m pytest
 # Run tests with coverage
 python -m pytest --cov=backuptool
 ```
-
-## License
-
-[MIT License](LICENSE)

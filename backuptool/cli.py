@@ -8,7 +8,7 @@ from typing import List, Dict, Any, Optional, Tuple, NoReturn
 
 from .operations import BackupOperations
 
-# Configure logging to write to file only, not stdout
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -215,10 +215,13 @@ def check_command(args: argparse.Namespace) -> None:
         print_error_and_exit(f"Error checking database integrity: {str(e)}")
 
 
-def main() -> None:
+def main() -> int:
     """
     Main entry point for the backup tool command line interface.
     Parses arguments and dispatches to appropriate command handlers.
+    
+    Returns:
+        int: Exit code (0 for success, non-zero for errors)
     """
     parser = argparse.ArgumentParser(
         description="File backup tool with incremental snapshots",
@@ -264,7 +267,7 @@ def main() -> None:
     restore_parser.add_argument(
         "--output-directory", 
         required=True, 
-        help="Directory to restore to (will be created if it doesn't exist)"
+        help="Directory to restore files to"
     )
     
     # Prune command
@@ -276,7 +279,7 @@ def main() -> None:
         "--snapshot", 
         type=int, 
         required=True, 
-        help="Snapshot ID to prune"
+        help="ID of the snapshot to remove"
     )
     
     # Check command
@@ -296,12 +299,16 @@ def main() -> None:
         "check": check_command,
     }
     
-    if args.command in command_handlers:
-        command_handlers[args.command](args)
-    else:
-        parser.print_help()
-        sys.exit(1)
+    try:
+        if args.command in command_handlers:
+            command_handlers[args.command](args)
+            return 0
+        else:
+            parser.print_help()
+            return 1
+    except Exception as e:
+        print_error_and_exit(f"Error: {str(e)}", 1)
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
