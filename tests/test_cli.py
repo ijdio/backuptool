@@ -55,6 +55,8 @@ class TestCLI(TestBase):
         assert "SNAPSHOT" in result.stdout
         assert "TIMESTAMP" in result.stdout
         assert "SIZE" in result.stdout
+        assert "DISTINCT_SIZE" in result.stdout
+        assert "total" in result.stdout
         
     def test_restore_command(self):
         """Test the restore command via CLI."""
